@@ -7,6 +7,9 @@ services:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
   web:
     build: .
     command: gunicorn -w 4 --bind 0.0.0.0:5000 app:app
