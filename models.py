@@ -116,8 +116,8 @@ class Sharing(Base):
     analysis_id = Column(Integer, ForeignKey('analysis.id'))
 
     analysis = relationship('Analysis', back_populates='sharings')
-    owner = relationship('User', back_populates='sharings')  # TODO: fix needed?
-    viewer = relationship('User', back_populates='sharings')  # TODO: fix needed?
+    owner = relationship('User', back_populates='owner_sharings')
+    viewer = relationship('User', back_populates='viewer_sharings')
 
     def __repr__(self):
         return f'<{self.owner.username} shared analysis {self.analysis.id} with {self.viewer.username}>'
