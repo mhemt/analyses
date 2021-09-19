@@ -8,9 +8,9 @@ from database import Base
 
 
 class UserType(enum.Enum):
-    PATIENT = 'PATIENT'
-    DOCTOR = 'DOCTOR'
-    LABORATORY = 'LABORATORY'
+    patient = 'patient'
+    doctor = 'doctor'
+    laboratory = 'laboratory'
 
 
 class User(Base):
@@ -24,7 +24,12 @@ class User(Base):
     type = Column('type', Enum(UserType))
 
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User id: {self.id}, ' \
+               f'username: {self.username}, ' \
+               f'email: {self.email}, ' \
+               f'first_name: {self.first_name}, ' \
+               f'last_name: {self.last_name}, ' \
+               f'type: {self.type.value}>'
 
 
 class Laboratory(Base):
@@ -46,17 +51,17 @@ class Analysis(Base):
     laboratory_id = Column(Integer, ForeignKey('laboratory.id'))
     timestamp = Column(DateTime, default=datetime.now)
 
-    user = relationship('User', back_populates='analyses')
-    laboratory = relationship('Laboratory', back_populates='analyses')
+    user = relationship('User', backref='analyses')
+    laboratory = relationship('Laboratory', backref='analyses')
 
     def __repr__(self):
         return f'<Analysis of {self.user.username}>'
 
 
 class TestStatus(enum.Enum):
-    CREATED = 'CREATED'
-    PROCESSING = 'PROCESSING'
-    DONE = 'DONE'
+    created = 'created'
+    processing = 'processing'
+    done = 'done'
 
 
 class Test(Base):
@@ -68,16 +73,16 @@ class Test(Base):
     result = Column(Boolean, nullable=True)
     status = Column('status', Enum(TestStatus))
 
-    analysis = relationship('Analysis', back_populates='tests')
-    parameter = relationship('TestParameter', back_populates='test')
+    analysis = relationship('Analysis', backref='tests')
+    parameters = relationship('TestParameter', back_populates='test')
 
     def __repr__(self):
         return f'<Test for analysis {self.analysis.id}>'
 
 
 class ParameterType(enum.Enum):
-    INT = 'INT'
-    INT_BOOL = 'INT_BOOL'
+    int = 'int'
+    int_bool = 'int_bool'
 
 
 class Parameter(Base):
@@ -88,7 +93,7 @@ class Parameter(Base):
     description = Column(String(300))
     type = Column('type', Enum(ParameterType))
 
-    test = relationship('TestParameter', back_populates='parameter')
+    tests = relationship('TestParameter', back_populates='parameter')
 
     def __repr__(self):
         return f'<Parameter {self.name}>'
@@ -97,11 +102,11 @@ class Parameter(Base):
 class TestParameter(Base):
     __tablename__ = 'test_parameter'
 
-    test_id = Column(Integer, primary_key=True)
-    parameter_id = Column(Integer, primary_key=True)
+    test_id = Column(Integer, ForeignKey('test.id'), primary_key=True)
+    parameter_id = Column(Integer, ForeignKey('parameter.id'), primary_key=True)
 
-    test = relationship('Test', back_populates='parameter')
-    parameter = relationship('Parameter', back_populates='test')
+    test = relationship('Test', back_populates='parameters')
+    parameter = relationship('Parameter', back_populates='tests')
 
     def __repr__(self):
         return f'<Parameter {self.parameter.name} for test {self.test.id}>'
@@ -115,9 +120,9 @@ class Sharing(Base):
     viewer_id = Column(Integer, ForeignKey('user.id'))
     analysis_id = Column(Integer, ForeignKey('analysis.id'))
 
-    analysis = relationship('Analysis', back_populates='sharings')
-    owner = relationship('User', back_populates='owner_sharings')
-    viewer = relationship('User', back_populates='viewer_sharings')
+    analysis = relationship('Analysis', backref='sharings')
+    owner = relationship('User', backref='owner_sharings', foreign_keys=[owner_id])
+    viewer = relationship('User', backref='viewer_sharings', foreign_keys=[viewer_id])
 
     def __repr__(self):
         return f'<{self.owner.username} shared analysis {self.analysis.id} with {self.viewer.username}>'
