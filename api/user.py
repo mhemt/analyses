@@ -1,101 +1,53 @@
 import json
 
-from flask import request, jsonify, abort
+from flask import request, jsonify, abort, Response
 
 from app import app
 from database import db_session
-from models import User
+from models import User, get_all, get_by_id, delete_by_id, create, update_by_id
 
 
 @app.route(f'{app.api_path}/users/', methods=['GET', 'POST'])
-def api_users():
+def api_users() -> Response:
     if request.method == 'GET':
-        users = User.query.all()
+        users = get_all(User, db_session)
 
-        return jsonify([dict(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            type=user.type.value,
-        ) for user in users])
+        return jsonify(users)
 
     elif request.method == 'POST':
         data = json.loads(request.data)
+        user = create(User, db_session, data)
 
-        user = User(
-            username=data['username'],
-            email=data['email'],
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            type=data['type'],
-        )
-
-        db_session.add(user)
-        db_session.commit()
-
-        return jsonify(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            type=user.type.value,
-        )
+        return jsonify(user)
 
 
 @app.route(f'{app.api_path}/users/<int:user_id>', methods=['GET', 'PUT', 'PATCH', 'DELETE'])
-def api_user(user_id: int):
+def api_user(user_id: int) -> Response:
     if request.method == 'GET':
-        user = User.query.filter(User.id == user_id).first()
+        user = get_by_id(User, db_session, user_id)
 
         if user is None:
             abort(404)
 
-        return jsonify(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            type=user.type.value,
-        )
+        return jsonify(user)
 
     elif request.method in ('PUT', 'PATCH'):
         data = json.loads(request.data)
-        user = User.query.filter(User.id == user_id).first()
+
+        try:
+            user = update_by_id(User, db_session, user_id, data)
+        except ValueError:
+            abort(400)
+        else:
+            if user is None:
+                abort(404)
+
+            return jsonify(user)
+
+    elif request.method == 'DELETE':
+        user = delete_by_id(User, db_session, user_id)
 
         if user is None:
             abort(404)
 
-        user.username = data.get('username') or user.username
-        user.email = data.get('email') or user.email
-        user.first_name = data.get('first_name') or user.first_name
-        user.last_name = data.get('last_name') or user.last_name
-
-        db_session.commit()
-
-        return jsonify(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            type=user.type.value,
-        )
-
-    elif request.method == 'DELETE':
-        user = User.query.filter(User.id == user_id).first()
-
-        db_session.delete(user)
-        db_session.commit()
-
-        return jsonify(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            type=user.type.value,
-        )
+        return jsonify(user)

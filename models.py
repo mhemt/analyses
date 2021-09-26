@@ -1,10 +1,62 @@
 import enum
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Type, List, TypeVar, Union
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Enum, DateTime, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Enum, DateTime, Boolean, select, update
+from sqlalchemy.orm import relationship, scoped_session, validates
 
 from database import Base
+
+T = TypeVar('T')
+
+
+def get_all(model: Type[T], db_session: scoped_session) -> List[T]:
+    selected = db_session.execute(select(model))
+
+    return selected.scalars().all()
+
+
+def get_by_id(model: Type[T], db_session: scoped_session, id_: int) -> T:
+    selected = db_session.execute(
+        select(model).where(model.id == id_)
+    )
+
+    return selected.scalar()
+
+
+def create(model: Type[T], db_session: scoped_session, data: dict) -> T:
+    object_ = model(**data)
+    db_session.add(object_)
+    db_session.commit()
+
+    return object_
+
+
+def update_by_id(model: Type[T], db_session: scoped_session, id_: int, data: dict) -> Union[T, None]:
+    object_ = get_by_id(model, db_session, id_)
+
+    if not object_:
+        return
+
+    db_session.execute(
+        update(model).where(model.id == id_).values(**data)
+    )
+    db_session.commit()
+
+    return object_
+
+
+def delete_by_id(model: Type[T], db_session: scoped_session, id_: int) -> Union[T, None]:
+    object_ = get_by_id(model, db_session, id_)
+
+    if not object_:
+        return
+
+    db_session.delete(object_)
+    db_session.commit()
+
+    return object_
 
 
 class UserType(enum.Enum):
@@ -12,8 +64,19 @@ class UserType(enum.Enum):
     doctor = 'doctor'
     laboratory = 'laboratory'
 
+    def __deepcopy__(self, memo):  # to able to serialize
+        return self.value
 
+
+@dataclass
 class User(Base):
+    id: int
+    username: str
+    email: str
+    first_name: str
+    last_name: str
+    type: UserType
+
     __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True)
@@ -30,6 +93,14 @@ class User(Base):
                f'first_name: {self.first_name}, ' \
                f'last_name: {self.last_name}, ' \
                f'type: {self.type.value}>'
+
+    # Doesn't work on update
+    @validates('username')
+    def validates_username(self, key, value):
+        if self.username and self.username != value:
+            raise ValueError('Username cannot be modified')
+
+        return value
 
 
 class Laboratory(Base):
